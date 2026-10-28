@@ -101,6 +101,13 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 
 .empty{border:1.5px dashed var(--line);border-radius:18px;padding:22px;text-align:center;color:var(--muted)}
 .foot{font-size:.8rem;color:var(--muted);text-align:center}
+.nudge{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:20px;background:color-mix(in oklab,var(--accent) 14%,var(--surface));border:1px solid color-mix(in oklab,var(--accent) 35%,var(--line))}
+.nudge .ntext{display:flex;gap:10px;align-items:flex-start;font-size:.95rem;line-height:1.35}
+.nudge .ntext svg{width:22px;height:22px;flex:none;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
+.nudge .ntext b{display:block;font-weight:600}
+.nudge .ntext span{color:var(--muted);font-size:.88rem}
+.nudge .eactions .btn{flex:1}
+.nudge .btn.primary{background:var(--accent);border-color:var(--accent);color:#0E0F13}
 .err{background:color-mix(in oklab,var(--danger) 14%,var(--surface));color:var(--ink);border-radius:12px;padding:10px 12px;font-size:.9rem}
 
 /* Einstellungen */
@@ -231,6 +238,36 @@ const TEMPLATES=[
 function icon(k){const i=ICONS[k]||ICONS.stern;return `<svg viewBox="0 0 24 24" aria-hidden="true">${i[1]}</svg>`}
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
 const LS='habit-tracker-v1';
+const LSM='habit-tracker-meta';
+const BACKUP_DAYS=14;
+let meta={};
+try{meta=JSON.parse(localStorage.getItem(LSM)||'{}')||{}}catch(e){meta={}}
+if(!meta.firstUse) meta.firstUse=Date.now();
+function saveMeta(){try{localStorage.setItem(LSM,JSON.stringify(meta))}catch(e){}}
+saveMeta();
+function hasEntries(){return Object.values(state.days).some(d=>d&&Object.values(d).some(v=>v>0))}
+function backupDue(){
+  if(!hasEntries()) return 0;
+  if(meta.snoozeUntil&&Date.now()<meta.snoozeUntil) return 0;
+  const n=Math.floor((Date.now()-(meta.lastBackup||meta.firstUse))/864e5);
+  return n>=BACKUP_DAYS?n:0;
+}
+function markBackup(t){meta.lastBackup=t||Date.now(); meta.snoozeUntil=0; saveMeta()}
+function lastBackupText(){
+  if(!meta.lastBackup) return 'Noch nie gesichert.';
+  return 'Zuletzt gesichert am '+new Date(meta.lastBackup).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'})+'.';
+}
+async function doExport(){
+  const data=JSON.stringify({app:'gewohnheiten',version:1,exported:new Date().toISOString(),habits:state.habits,days:state.days},null,1);
+  const file=new File([data],'gewohnheiten-'+todayKey()+'.json',{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:'Gewohnheiten-Sicherung'})}
+    catch(e){ if(e&&e.name==='AbortError') return false; }
+  }else{
+    const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove();
+  }
+  markBackup(); state.backupMsg='Sicherung erstellt.'; render(); return true;
+}
 
 const state={habits:clone(DEFAULT_HABITS),days:{},sel:todayKey(),view:'today',draft:null,confirmDel:null,open:new Set(),detailId:null,month:null,editOne:null,isNew:false,mode:'local',error:''};
 let col=null; const pending=new Map(); const timers={}; let chain=Promise.resolve(); let renderDeferred=false;
@@ -360,6 +397,13 @@ function viewToday(){
     <div class="when"><h1>${esc(dayTitle(k))}</h1><div class="sub">${esc(dateLine)}${hs.length?` · <b style="color:var(--ink)">${doneN} von ${hs.length}</b> erledigt`:''}</div></div>
     ${k!==t?'<button class="today-link" data-act="today">Heute</button>':''}
     <button class="iconbtn" data-act="next" aria-label="Nächster Tag" ${k>=t?'disabled':''}>${ICON.r}</button>
+  </div>`;
+  const due=backupDue();
+  if(due) html+=`<div class="nudge" role="status">
+    <div class="ntext"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M12 8v5M12 16.5v.01"/></svg>
+      <div><b>${meta.lastBackup?`Letzte Sicherung vor ${due} Tagen`:'Deine Einträge sind noch nicht gesichert'}</b>
+      <span>Sichere sie als Datei in iCloud Drive, damit nichts verloren geht, falls du die App neu installierst.</span></div></div>
+    <div class="eactions"><button class="btn" data-act="bsnooze">Später</button><button class="btn primary" data-act="bexport">Jetzt sichern</button></div>
   </div>`;
   if(state.error) html+=`<div class="err" role="status">${esc(state.error)}</div>`;
   html+='<div class="list">';
@@ -562,6 +606,7 @@ function viewEdit(){
     <div class="backup"><span class="sublabel">Datensicherung</span>
       <p class="hint">Speichert alle Gewohnheiten und Einträge als Datei, zum Beispiel in iCloud Drive. Mit „Wiederherstellen“ holst du sie zurück.</p>
       <div class="eactions"><button class="btn" data-act="export">Sichern</button><label class="btn" for="imp" style="text-align:center;cursor:pointer">Wiederherstellen</label><input class="vh" type="file" id="imp" accept="application/json,.json"></div>
+      <p class="hint">${esc(lastBackupText())}</p>
       ${state.backupMsg?`<p class="hint" role="status">${esc(state.backupMsg)}</p>`:''}</div>
     <p class="foot">Beim Löschen bleiben frühere Einträge erhalten, sie werden nur nicht mehr angezeigt.</p></div>`;
   return html;
@@ -604,6 +649,8 @@ app.addEventListener('click',e=>{
     case 'mnext': {const d=parseKey((state.month||monthKey(state.sel))+'-01'); d.setMonth(d.getMonth()+1); state.month=monthKey(keyOf(d)); render()} break;
     case 'new': state.draft=[newHabit()]; state.editOne='new'; state.isNew=true; state.confirmDel=null; state.view='edit'; render(); window.scrollTo(0,0); break;
     case 'editone': if(h){state.draft=[clone(h)]; state.editOne=h.id; state.isNew=false; state.confirmDel=null; state.view='edit'; render(); window.scrollTo(0,0)} break;
+    case 'bexport': doExport(); break;
+    case 'bsnooze': meta.snoozeUntil=Date.now()+3*864e5; saveMeta(); render(); break;
     case 'edit': state.editOne=null; state.isNew=false; state.draft=clone(state.habits); state.confirmDel=null; state.view='edit'; render(); window.scrollTo(0,0); break;
     default: editAction(act,b);
   }
@@ -649,13 +696,7 @@ function editAction(act,b){
     else {state.habits=state.habits.map(x=>x.id===h.id?h:x); state.view='detail'}
     state.draft=null; state.editOne=null; state.isNew=false; saveConfig(); render(); window.scrollTo(0,0); return;
   }
-  else if(act==='export'){
-    const data=JSON.stringify({app:'gewohnheiten',version:1,exported:new Date().toISOString(),habits:state.habits,days:state.days},null,1);
-    const file=new File([data],'gewohnheiten-'+todayKey()+'.json',{type:'application/json'});
-    if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],title:'Gewohnheiten-Sicherung'}).catch(()=>{})}
-    else{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
-    state.backupMsg='Sicherung erstellt.';
-  }
+  else if(act==='export'){ doExport(); return; }
   else if(act==='save'){
     state.habits=d.map(cleanHabit);
     state.draft=null; state.view='today'; saveConfig(); render(); window.scrollTo(0,0); return;
@@ -673,6 +714,7 @@ app.addEventListener('change',e=>{
   r.onload=()=>{try{
     const o=JSON.parse(r.result); if(!Array.isArray(o.habits)||typeof o.days!=='object') throw 0;
     state.habits=o.habits; state.days=o.days||{}; state.draft=clone(state.habits); saveLocal();
+    const t=Date.parse(o.exported); markBackup(isFinite(t)?t:Date.now());
     state.backupMsg='Wiederhergestellt: '+o.habits.length+' Gewohnheiten.';
   }catch(err){state.backupMsg='Diese Datei ist keine Gewohnheiten-Sicherung.'} render()};
   r.readAsText(e.target.files[0]);
