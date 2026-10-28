@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
 *{box-sizing:border-box}
-html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:#0E0F13}
+html{font-size:14px;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:#0E0F13}
 body{margin:0}
 /* Layout: deliberately dark-only phone column. Each habit is a tinted card: icon tile, name, one action button, and a half-year dot grid (weeks as columns, Mo–So as rows). */
 :root{
@@ -30,7 +30,7 @@ body{margin:0}
 }
 
 html,body{min-height:100%}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px;
   -webkit-tap-highlight-color:transparent}
 .app{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
@@ -108,7 +108,7 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 .ecard{--c:var(--h-blau);background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .field{display:flex;flex-direction:column;gap:4px;min-width:0}
 .field label{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.field input,.field select{font:inherit;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}
+.field input,.field select{font:inherit;font-size:16px;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}
 .grid3{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .ehead{display:flex;align-items:center;gap:10px}
