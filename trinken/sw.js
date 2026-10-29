@@ -1,5 +1,5 @@
 // Offline-Cache der Trink-App: zeigt die gespeicherte Version sofort und lädt Updates im Hintergrund.
-const CACHE = 'trinken-v1';
+const CACHE = 'trinken-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

@@ -118,6 +118,31 @@ h2{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
   background:color-mix(in oklab,var(--accent) 14%,var(--surface));color:var(--accent);font-variant-numeric:tabular-nums}
 .stat svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
+/* Mengen-Auswahl */
+.sheetwrap{position:fixed;inset:0;z-index:30;background:rgba(4,7,10,.6);display:flex;align-items:flex-end;justify-content:center;animation:fade .15s ease}
+.sheet{--c:var(--d-blau);width:100%;max-width:520px;background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:26px 26px 0 0;
+  padding:18px max(18px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:16px;animation:up .2s ease}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheet .shead{display:flex;align-items:center;gap:12px}
+.sheet .shead h2{flex:1;font-size:1.25rem}
+.sheet .close{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--muted);display:grid;place-items:center}
+.sheet .close svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.amtrow{display:flex;align-items:center;justify-content:center;gap:14px}
+.amtrow .stepb{width:52px;height:52px;border-radius:16px;border:1px solid var(--line);background:var(--bg);font-size:1.6rem;line-height:1;color:var(--ink);display:grid;place-items:center}
+.amtrow .stepb:active{transform:scale(.94)}
+.amtval{display:flex;align-items:baseline;gap:6px}
+.amtval input{font-family:var(--display);font-weight:800;font-size:2.8rem;line-height:1;width:4ch;text-align:right;border:0;border-bottom:2px dashed transparent;background:transparent;color:var(--ink);padding:2px 0;font-variant-numeric:tabular-nums}
+.amtval input:focus{outline:none;border-bottom-color:var(--c)}
+.amtval span{color:var(--muted);font-size:1.1rem}
+.qchips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.qchips button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 13px;font-size:.9rem;font-variant-numeric:tabular-nums}
+.qchips button.on{background:var(--c);border-color:var(--c);color:#0C1116;font-weight:600}
+.qchips button.std::after{content:" ★";font-size:.7rem;opacity:.7}
+.addbtn{border:0;border-radius:16px;padding:15px;font-weight:700;font-size:1.05rem;background:var(--c);color:#0C1116}
+.sheet .note{font-size:.8rem;color:var(--muted);text-align:center;margin:-6px 0 0}
+
 /* Toast */
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:20;
   background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:.92rem;
@@ -177,6 +202,7 @@ h2{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
 </head>
 <body>
 <div class="app" id="app"></div>
+<div id="sheet"></div>
 <div id="toast"></div>
 
 <script>
@@ -222,7 +248,7 @@ const GOALS=[1500,2000,2500,3000];
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
 const LS='trinken-v1', LSM='trinken-meta', BACKUP_DAYS=14;
 
-const state={drinks:clone(DEFAULT_DRINKS),goal:2000,days:{},sel:todayKey(),view:'today',draft:null,openEntry:null,confirmDel:null,backupMsg:''};
+const state={drinks:clone(DEFAULT_DRINKS),goal:2000,days:{},sel:todayKey(),view:'today',draft:null,openEntry:null,confirmDel:null,backupMsg:'',sheet:null};
 
 /* ---------- Hilfen ---------- */
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -273,7 +299,7 @@ async function doExport(){
 }
 
 /* ---------- Ansicht ---------- */
-const app=document.getElementById('app'), toastEl=document.getElementById('toast');
+const app=document.getElementById('app'), toastEl=document.getElementById('toast'), sheetEl=document.getElementById('sheet');
 const UI={
   l:'<svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>',
   r:'<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
@@ -319,7 +345,7 @@ function viewToday(){
   // Buttons
   html+='<section class="drinks" aria-label="Getränk hinzufügen">';
   for(const d of state.drinks){
-    html+=`<button class="drink ${d.counts===false?'nocount':''}" style="--c:var(--d-${esc(d.color)})" data-act="log" data-id="${esc(d.id)}" aria-label="${esc(d.name)}, ${d.ml} ml hinzufügen">
+    html+=`<button class="drink ${d.counts===false?'nocount':''}" style="--c:var(--d-${esc(d.color)})" data-act="log" data-id="${esc(d.id)}" aria-label="${esc(d.name)} eintragen">
       <span class="dic">${icon(d.icon)}</span><span class="n">${esc(d.name)}</span><span class="m">${esc(fmtL(d.ml))}</span></button>`;
   }
   if(!state.drinks.length) html+=`<div class="empty" style="grid-column:1/-1">Noch keine Getränke. Leg über die Regler oben links welche an.</div>`;
@@ -363,7 +389,7 @@ function viewToday(){
       <span class="b" style="height:${h.toFixed(1)}%"></span><span class="l">${WD[i]}</span></button>`;
   });
   html+=`</div><div class="stats"><span class="stat">${UI.flame}${s} ${s===1?'Tag':'Tage'} in Folge</span><span class="stat">${UI.avg}Ø ${esc(fmtL(avg))} am Tag</span><span class="stat">${UI.trophy}Rekord ${b} ${b===1?'Tag':'Tage'}</span></div></section>`;
-  html+=`<p class="foot">Tipp auf einen Eintrag, um die Menge zu ändern. Deine Daten bleiben nur auf diesem Gerät.</p>`;
+  html+=`<p class="foot">Tipp auf ein Getränk und wähle, wie viel du getrunken hast. Tipp auf einen Eintrag, um ihn zu ändern. Deine Daten bleiben nur auf diesem Gerät.</p>`;
   return html;
 }
 
@@ -418,12 +444,14 @@ function stampFor(k){
   const now=new Date(); if(k===todayKey()) return now.getTime();
   const d=parseKey(k); d.setHours(now.getHours(),now.getMinutes(),0,0); return d.getTime();
 }
-function logDrink(d){
+function logDrink(d,ml){
+  ml=Math.round(ml>0?ml:d.ml);
   const k=state.sel; const list=(state.days[k]=entries(k).slice());
   const before=total(k);
-  list.push({d:d.id,ml:d.ml,t:stampFor(k)}); state.openEntry=null; save(); render();
+  list.push({d:d.id,ml,t:stampFor(k)}); state.openEntry=null; save(); render();
+  meta.lastMl=Object.assign({},meta.lastMl,{[d.id]:ml}); saveMeta();
   const idx=list.length-1;
-  let msg=`${d.name} · ${fmtL(d.ml)}`;
+  let msg=`${d.name} · ${fmtL(ml)}`;
   if(before<goal()&&total(k)>=goal()) msg='Tagesziel geschafft!';
   toast(msg,()=>{const l=entries(k).slice(); l.splice(idx,1); state.days[k]=l; save(); render()});
 }
@@ -448,7 +476,7 @@ app.addEventListener('click',e=>{
     case 'next': if(k<todayKey()){state.sel=addDays(k,1); state.openEntry=null; render()} break;
     case 'today': state.sel=todayKey(); state.openEntry=null; render(); break;
     case 'go': state.sel=b.dataset.day; state.openEntry=null; render(); break;
-    case 'log': {const d=drinkOf(b.dataset.id); if(d) logDrink(d)} break;
+    case 'log': {const d=drinkOf(b.dataset.id); if(d) openSheet(d)} break;
     case 'open': {const i=+b.dataset.i; state.openEntry=state.openEntry===i?null:i; render()} break;
     case 'amt': {const i=+b.dataset.i, l=entries(k).slice(); if(l[i]){l[i]=Object.assign({},l[i],{ml:+b.dataset.ml}); state.days[k]=l; state.openEntry=null; save(); render()}} break;
     case 'del': {
@@ -512,6 +540,48 @@ app.addEventListener('change',e=>{
   }
 });
 app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('.amt input'))e.target.blur()});
+
+/* ---------- Mengen-Auswahl ---------- */
+function openSheet(d){
+  const last=meta.lastMl&&meta.lastMl[d.id];
+  state.sheet={id:d.id,ml:last>0?last:d.ml};
+  renderSheet();
+}
+function closeSheet(){state.sheet=null; sheetEl.innerHTML=''}
+function renderSheet(){
+  const sh=state.sheet; if(!sh){sheetEl.innerHTML='';return}
+  const d=drinkOf(sh.id); if(!d){closeSheet();return}
+  const opts=[...new Set([d.ml,...AMOUNTS,750,1000])].sort((a,b)=>a-b);
+  const k=state.sel, day=k===todayKey()?'':` für ${dayTitle(k)==='Gestern'?'gestern':parseKey(k).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})}`;
+  sheetEl.innerHTML=`<div class="sheetwrap" data-sact="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(d.name)} eintragen" style="--c:var(--d-${esc(d.color)})">
+    <div class="shead"><span class="dic">${icon(d.icon)}</span><h2>${esc(d.name)}</h2><button class="close" data-sact="close" aria-label="Schließen">${UI.x}</button></div>
+    <div class="amtrow">
+      <button class="stepb" data-sact="minus" aria-label="50 ml weniger">−</button>
+      <div class="amtval"><input id="sheetml" inputmode="numeric" enterkeyhint="done" value="${sh.ml}" aria-label="Menge in ml"><span>ml</span></div>
+      <button class="stepb" data-sact="plus" aria-label="50 ml mehr">+</button>
+    </div>
+    <div class="qchips">${opts.map(v=>`<button data-sact="set" data-ml="${v}" class="${v===sh.ml?'on':''} ${v===d.ml?'std':''}">${fmtL(v)}</button>`).join('')}</div>
+    <button class="addbtn" data-sact="add">${esc(fmtL(sh.ml))} eintragen${esc(day)}</button>
+    ${d.counts===false?'<p class="note">Zählt nicht zum Tagesziel.</p>':''}
+  </div></div>`;
+}
+function readSheetInput(){const i=sheetEl.querySelector('#sheetml'); if(i&&state.sheet){const v=Math.round(num(i.value)); if(v>0) state.sheet.ml=Math.min(v,5000)}}
+sheetEl.addEventListener('click',e=>{
+  const b=e.target.closest('[data-sact]'); if(!b||!state.sheet) return;
+  const act=b.dataset.sact;
+  if(act==='close'){ if(b.classList.contains('sheetwrap')&&e.target!==b) return; closeSheet(); return }
+  readSheetInput();
+  const sh=state.sheet;
+  if(act==='minus') sh.ml=Math.max(50,Math.ceil(sh.ml/50)*50-50);
+  else if(act==='plus') sh.ml=Math.min(5000,Math.floor(sh.ml/50)*50+50);
+  else if(act==='set') sh.ml=+b.dataset.ml;
+  else if(act==='add'){const d=drinkOf(sh.id), ml=sh.ml; closeSheet(); if(d) logDrink(d,ml); return}
+  renderSheet();
+});
+sheetEl.addEventListener('change',e=>{if(e.target.id==='sheetml'){readSheetInput(); renderSheet()}});
+sheetEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='sheetml'){e.preventDefault(); readSheetInput(); const d=drinkOf(state.sheet.id), ml=state.sheet.ml; closeSheet(); if(d) logDrink(d,ml)}});
+sheetEl.addEventListener('focusin',e=>{if(e.target.id==='sheetml') e.target.select()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.sheet) closeSheet()});
 
 // Tageswechsel um Mitternacht
 let lastToday=todayKey();
