@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trinken</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trinken">
+<meta name="theme-color" content="#0C1116">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+*{box-sizing:border-box}
+html{font-size:14px;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:#0C1116}
+body{margin:0}
+/* Layout: dark phone column. A big fill ring for today's millilitres up top, a grid of drink buttons to log with one tap, then today's list, the split by drink and the week. */
+:root{
+  --bg:#0C1116; --surface:#171D24; --ink:#EEF2F6; --muted:#8B95A2; --line:#26303A; --soft:#1F2730;
+  --accent:#5FB3F0;
+  --d-blau:#5FB3F0; --d-tuerkis:#4FC9C4; --d-gruen:#7CCB86; --d-gelb:#E8C15A; --d-orange:#F0965E; --d-braun:#C79A6B; --d-rot:#EE6F7E; --d-pink:#E57DB7; --d-lila:#A98BF5;
+  --danger:#F07A8C;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme:dark;
+}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px;
+  -webkit-tap-highlight-color:transparent}
+.app{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+h1{font-family:var(--display);font-weight:800;font-size:1.7rem;line-height:1.05;margin:0;letter-spacing:-.02em}
+h2{font-family:var(--display);font-weight:700;font-size:1.05rem;margin:0}
+.sub{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.head{display:flex;align-items:center;gap:8px}
+.head .when{flex:1;min-width:0;text-align:center}
+.iconbtn{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.iconbtn:disabled{opacity:.3;cursor:default}
+.iconbtn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.spacer{flex:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.cardhead{display:flex;align-items:baseline;gap:8px}
+.cardhead h2{flex:1}
+
+/* Ring */
+.hero{display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 16px 18px;
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in oklab,var(--accent) 14%,var(--surface)),var(--surface));}
+.ring{position:relative;width:min(62vw,220px);aspect-ratio:1}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:12}
+.ring .bgc{stroke:color-mix(in oklab,var(--accent) 16%,var(--surface))}
+.ring .fgc{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.ring .big{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ring .of{color:var(--muted);font-size:.9rem}
+.left{font-size:.95rem;color:var(--muted)}
+.left b{color:var(--ink);font-weight:600}
+.left.ok b{color:var(--accent)}
+
+/* Getränke-Buttons */
+.drinks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.drink{--c:var(--d-blau);border:1px solid color-mix(in oklab,var(--c) 22%,var(--line));background:color-mix(in oklab,var(--c) 8%,var(--surface));
+  border-radius:20px;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;transition:transform .1s ease}
+.drink:active{transform:scale(.95)}
+.dic{width:44px;height:44px;border-radius:14px;background:color-mix(in oklab,var(--c) 22%,var(--surface));color:var(--c);display:grid;place-items:center}
+.dic svg,.icopt svg,.eic svg,.chip svg{stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.dic svg{width:24px;height:24px}
+.drink .n{font-weight:600;font-size:.95rem;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drink .m{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.drink.nocount .m::after{content:" · zählt nicht"}
+
+/* Liste */
+.entries{display:flex;flex-direction:column}
+.entry{--c:var(--d-blau);display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.entry:first-child{border-top:0}
+.eic{width:34px;height:34px;border-radius:10px;background:color-mix(in oklab,var(--c) 20%,var(--surface));color:var(--c);display:grid;place-items:center;flex:none}
+.eic svg{width:18px;height:18px}
+.ebtn{flex:1;min-width:0;border:0;background:none;padding:2px 0;text-align:left;display:flex;align-items:baseline;gap:8px}
+.ebtn .en{font-weight:600}
+.ebtn .et{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.ebtn .em{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+.ebtn .em.nc{color:var(--muted);font-weight:500}
+.del{width:34px;height:34px;border-radius:10px;border:0;background:none;color:var(--muted);display:grid;place-items:center;flex:none}
+.del svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.amt{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 10px 44px}
+.amt button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:6px 11px;font-size:.85rem;font-variant-numeric:tabular-nums}
+.amt button.on{background:var(--c);border-color:var(--c);color:#0C1116;font-weight:600}
+.empty{color:var(--muted);font-size:.92rem;text-align:center;padding:6px 0}
+
+/* Aufteilung */
+.split{display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--soft);gap:2px}
+.split i{display:block;height:100%}
+.legend{display:flex;flex-direction:column;gap:6px}
+.legend div{display:flex;align-items:center;gap:8px;font-size:.92rem}
+.legend .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.legend .v{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:600}
+.legend .nc{color:var(--muted);font-weight:500;font-size:.82rem}
+
+/* Woche */
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;height:150px;position:relative;padding-bottom:22px}
+.goalline{position:absolute;left:0;right:0;border-top:1.5px dashed color-mix(in oklab,var(--accent) 60%,transparent);pointer-events:none}
+.goalline span{position:absolute;right:0;top:-18px;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.wbar{border:0;background:none;padding:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative;min-width:0}
+.wbar .b{width:100%;max-width:30px;border-radius:8px 8px 4px 4px;background:color-mix(in oklab,var(--accent) 35%,var(--surface));min-height:3px}
+.wbar.met .b{background:var(--accent)}
+.wbar.sel .b{outline:2px solid var(--ink);outline-offset:2px}
+.wbar .l{position:absolute;bottom:-20px;font-size:.75rem;color:var(--muted);font-weight:600}
+.wbar.sel .l{color:var(--ink)}
+.wbar.fut{opacity:.3;cursor:default}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat{display:inline-flex;align-items:center;gap:7px;padding:8px 13px 8px 10px;border-radius:999px;font-size:.88rem;font-weight:600;
+  background:color-mix(in oklab,var(--accent) 14%,var(--surface));color:var(--accent);font-variant-numeric:tabular-nums}
+.stat svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:20;
+  background:var(--ink);color:var(--bg);border-radius:999px;padding:10px 10px 10px 18px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:.92rem;
+  box-shadow:0 8px 30px rgba(0,0,0,.45);max-width:calc(100% - 32px);white-space:nowrap}
+.toast button{border:0;background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 13px;font-weight:600;font-size:.88rem}
+
+/* Hinweise */
+.nudge{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:20px;background:color-mix(in oklab,var(--accent) 14%,var(--surface));border:1px solid color-mix(in oklab,var(--accent) 35%,var(--line))}
+.nudge .ntext{display:flex;gap:10px;align-items:flex-start;font-size:.95rem;line-height:1.35}
+.nudge .ntext svg{width:22px;height:22px;flex:none;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
+.nudge .ntext b{display:block;font-weight:600}
+.nudge .ntext span{color:var(--muted);font-size:.88rem}
+.today-link{background:none;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-weight:600;font-size:.85rem}
+
+/* Einstellungen */
+.edit{display:flex;flex-direction:column;gap:12px}
+.sublabel{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.hint{font-size:.85rem;color:var(--muted);margin:0}
+.ecard{--c:var(--d-blau);background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ehead{display:flex;align-items:flex-end;gap:10px}
+.ehead .dic{flex:none}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.field label{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.field input{font:inherit;font-size:16px;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-width:0;width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px}
+.icopt{height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--muted);display:grid;place-items:center}
+.icopt svg{width:20px;height:20px}
+.icopt.on{background:var(--c);border-color:var(--c);color:#0C1116}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:50%;border:3px solid var(--surface);outline:1.5px solid var(--line)}
+.sw.on{outline:2.5px solid var(--ink)}
+.toggle{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:10px 12px;text-align:left;width:100%}
+.toggle .tx{flex:1;font-size:.92rem}
+.toggle .tx span{display:block;font-size:.8rem;color:var(--muted)}
+.toggle .sw2{width:44px;height:26px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .2s}
+.toggle .sw2::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--ink);transition:transform .2s}
+.toggle.on .sw2{background:var(--c)}
+.toggle.on .sw2::after{transform:translateX(18px)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px 7px 9px;font-size:.88rem;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.chip svg{width:16px;height:16px;color:var(--muted)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#0C1116}
+.eactions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 13px;font-weight:600;font-size:.9rem}
+.btn.primary{background:var(--accent);color:#0C1116;border-color:var(--accent)}
+.btn.danger{color:var(--danger);border-color:color-mix(in oklab,var(--danger) 45%,var(--line))}
+.btn.dangerfill{background:var(--danger);color:#0C1116;border-color:var(--danger)}
+.btn.wide{width:100%;padding:13px}
+.box{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.addbox{border-style:dashed;background:transparent}
+.vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.foot{font-size:.8rem;color:var(--muted);text-align:center;margin:0}
+@media (max-width:360px){.drinks{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+/* ---------- Grunddaten ---------- */
+const COLORS=['blau','tuerkis','gruen','gelb','orange','braun','rot','pink','lila'];
+const COLOR_NAMES={blau:'Blau',tuerkis:'Türkis',gruen:'Grün',gelb:'Gelb',orange:'Orange',braun:'Braun',rot:'Rot',pink:'Pink',lila:'Lila'};
+const ICONS={
+  glas:['Glas','<path d="M6 3h12l-1.6 17.1a1 1 0 0 1-1 .9H8.6a1 1 0 0 1-1-.9z"/><path d="M6.7 10h10.6"/>'],
+  tropfen:['Tropfen','<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>'],
+  tasse:['Tasse','<path d="M4 8h13v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M8 3v2M12 3v2"/>'],
+  becher:['Becher','<path d="M6 3h12v3H6zM5 6h14M7 6l1.2 15h7.6L17 6"/>'],
+  flasche:['Flasche','<path d="M10 2h4v3l1.5 2.5V20a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V7.5L10 5z"/><path d="M8.5 12h7"/>'],
+  dose:['Dose','<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M7 7h10M7 17h10"/>'],
+  wein:['Weinglas','<path d="M7 3h10c0 5-2 8-5 8s-5-3-5-8zM12 11v9M8 21h8"/>'],
+  bier:['Bier','<path d="M5 7h11v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2zM16 10h2a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/><path d="M5 7c0-2 1.5-3 3-3 .5-1 1.6-1.5 2.8-1.5S13 3 13.4 4c1.4 0 2.6 1 2.6 3"/>'],
+  shake:['Shake','<path d="M7 8h10l-1.3 12.1a1 1 0 0 1-1 .9H9.3a1 1 0 0 1-1-.9zM6 8h12M13 8l2-6"/>'],
+};
+const DEFAULT_DRINKS=[
+  {id:'wasser',name:'Wasser',icon:'glas',color:'blau',ml:250,counts:true},
+  {id:'tee',name:'Tee',icon:'tasse',color:'gruen',ml:250,counts:true},
+  {id:'kaffee',name:'Kaffee',icon:'becher',color:'braun',ml:150,counts:true},
+  {id:'saft',name:'Saft',icon:'glas',color:'orange',ml:200,counts:true},
+  {id:'schorle',name:'Schorle',icon:'flasche',color:'tuerkis',ml:330,counts:true},
+];
+const TEMPLATES=[
+  {name:'Wasser',icon:'glas',color:'blau',ml:250},
+  {name:'Sprudel',icon:'flasche',color:'tuerkis',ml:500},
+  {name:'Tee',icon:'tasse',color:'gruen',ml:250},
+  {name:'Kaffee',icon:'becher',color:'braun',ml:150},
+  {name:'Cappuccino',icon:'tasse',color:'braun',ml:200},
+  {name:'Saft',icon:'glas',color:'orange',ml:200},
+  {name:'Schorle',icon:'flasche',color:'tuerkis',ml:330},
+  {name:'Milch',icon:'glas',color:'lila',ml:200},
+  {name:'Smoothie',icon:'shake',color:'pink',ml:250},
+  {name:'Limo',icon:'dose',color:'gelb',ml:330},
+  {name:'Cola',icon:'dose',color:'rot',ml:330},
+  {name:'Wein',icon:'wein',color:'rot',ml:150,counts:false},
+  {name:'Bier',icon:'bier',color:'gelb',ml:330,counts:false},
+];
+const AMOUNTS=[100,150,200,250,300,330,400,500];
+const GOALS=[1500,2000,2500,3000];
+const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const LS='trinken-v1', LSM='trinken-meta', BACKUP_DAYS=14;
+
+const state={drinks:clone(DEFAULT_DRINKS),goal:2000,days:{},sel:todayKey(),view:'today',draft:null,openEntry:null,confirmDel:null,backupMsg:''};
+
+/* ---------- Hilfen ---------- */
+function clone(x){return JSON.parse(JSON.stringify(x))}
+function keyOf(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function todayKey(){return keyOf(new Date())}
+function parseKey(k){const [y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)}
+function addDays(k,n){const d=parseKey(k);d.setDate(d.getDate()+n);return keyOf(d)}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function num(s){const v=parseFloat(String(s).replace(',','.'));return isFinite(v)&&v>=0?v:0}
+function fmtL(ml){ml=Math.round(ml||0); return ml>=1000?(ml/1000).toLocaleString('de-DE',{maximumFractionDigits:2})+' l':ml+' ml'}
+function icon(k){const i=ICONS[k]||ICONS.glas;return `<svg viewBox="0 0 24 24" aria-hidden="true">${i[1]}</svg>`}
+function drinkOf(id){return state.drinks.find(d=>d.id===id)}
+function entries(k){return state.days[k]||[]}
+function counts(e){const d=drinkOf(e.d); return d?d.counts!==false:(e.c!==false)}
+function total(k){return entries(k).reduce((s,e)=>s+(counts(e)?e.ml:0),0)}
+function goal(){return state.goal>0?state.goal:2000}
+function met(k){return total(k)>=goal()}
+function streak(){let k=todayKey(); if(!met(k)) k=addDays(k,-1); let n=0; while(met(k)&&n<3650){n++;k=addDays(k,-1)} return n}
+function best(){
+  const ks=Object.keys(state.days).filter(k=>entries(k).length).sort(); if(!ks.length) return 0;
+  let k=ks[0],t=todayKey(),run=0,b=0; while(k<=t){ if(met(k)){run++; if(run>b)b=run} else if(k!==t) run=0; k=addDays(k,1)} return b;
+}
+function dayTitle(k){const t=todayKey(); if(k===t) return 'Heute'; if(k===addDays(t,-1)) return 'Gestern'; return parseKey(k).toLocaleDateString('de-DE',{weekday:'long'})}
+
+/* ---------- Speicher ---------- */
+function save(){try{localStorage.setItem(LS,JSON.stringify({drinks:state.drinks,goal:state.goal,days:state.days}))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem(LS)||'null'); if(s){ if(Array.isArray(s.drinks))state.drinks=s.drinks; if(s.goal>0)state.goal=s.goal; if(s.days&&typeof s.days==='object')state.days=s.days }}catch(e){}}
+let meta={}; try{meta=JSON.parse(localStorage.getItem(LSM)||'{}')||{}}catch(e){meta={}}
+if(!meta.firstUse) meta.firstUse=Date.now();
+function saveMeta(){try{localStorage.setItem(LSM,JSON.stringify(meta))}catch(e){}}
+saveMeta();
+function hasEntries(){return Object.values(state.days).some(a=>Array.isArray(a)&&a.length)}
+function backupDue(){
+  if(!hasEntries()) return 0;
+  if(meta.snoozeUntil&&Date.now()<meta.snoozeUntil) return 0;
+  const n=Math.floor((Date.now()-(meta.lastBackup||meta.firstUse))/864e5);
+  return n>=BACKUP_DAYS?n:0;
+}
+function markBackup(t){meta.lastBackup=t||Date.now(); meta.snoozeUntil=0; saveMeta()}
+function lastBackupText(){return meta.lastBackup?'Zuletzt gesichert am '+new Date(meta.lastBackup).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'})+'.':'Noch nie gesichert.'}
+async function doExport(){
+  const data=JSON.stringify({app:'trinken',version:1,exported:new Date().toISOString(),drinks:state.drinks,goal:state.goal,days:state.days},null,1);
+  const file=new File([data],'trinken-'+todayKey()+'.json',{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:'Trinken-Sicherung'})}catch(e){ if(e&&e.name==='AbortError') return }
+  }else{const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove()}
+  markBackup(); state.backupMsg='Sicherung erstellt.'; render();
+}
+
+/* ---------- Ansicht ---------- */
+const app=document.getElementById('app'), toastEl=document.getElementById('toast');
+const UI={
+  l:'<svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>',
+  r:'<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+  set:'<svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  flame:'<svg viewBox="0 0 24 24"><path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.3 1.5 1 2.5 2 3 0-3.5 0-5.5 1-8.5z"/></svg>',
+  trophy:'<svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg>',
+  avg:'<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M12 8v5M12 16.5v.01"/></svg>',
+};
+
+function render(){
+  const a=document.activeElement;
+  if(state.view==='today'&&a&&a.matches&&a.matches('.amt input')) return;
+  app.innerHTML=state.view==='today'?viewToday():viewEdit();
+}
+
+function viewToday(){
+  const k=state.sel, t=todayKey(), g=goal(), tot=total(k), fr=Math.min(1,tot/g);
+  const C=2*Math.PI*88;
+  const dateLine=parseKey(k).toLocaleDateString('de-DE',{day:'numeric',month:'long'});
+  let html=`<header class="head">
+    <button class="iconbtn" data-act="edit" aria-label="Einstellungen">${UI.set}</button>
+    <span class="spacer"></span>
+    <button class="iconbtn" data-act="prev" aria-label="Vorheriger Tag">${UI.l}</button>
+    <div class="when" style="flex:none;min-width:7.5em"><h1>${esc(dayTitle(k))}</h1><div class="sub">${esc(dateLine)}</div></div>
+    <button class="iconbtn" data-act="next" aria-label="Nächster Tag" ${k>=t?'disabled':''}>${UI.r}</button>
+    <span class="spacer"></span>
+    ${k!==t?'<button class="today-link" data-act="today">Heute</button>':'<span style="width:44px"></span>'}
+  </header>`;
+  const due=backupDue();
+  if(due) html+=`<div class="nudge" role="status"><div class="ntext">${UI.shield}<div><b>${meta.lastBackup?`Letzte Sicherung vor ${due} Tagen`:'Deine Einträge sind noch nicht gesichert'}</b>
+      <span>Sichere sie als Datei in iCloud Drive, damit nichts verloren geht, falls du die App neu installierst.</span></div></div>
+    <div class="eactions"><button class="btn" data-act="bsnooze" style="flex:1">Später</button><button class="btn primary" data-act="bexport" style="flex:1">Jetzt sichern</button></div></div>`;
+
+  // Ring
+  const leftTxt=tot>=g?`<div class="left ok"><b>Ziel geschafft!</b>${tot>g?` ${fmtL(tot-g)} mehr als geplant`:''}</div>`:`<div class="left">Noch <b>${fmtL(g-tot)}</b> bis zum Ziel</div>`;
+  html+=`<section class="card hero"><div class="ring">
+      <svg viewBox="0 0 200 200"><circle class="bgc" cx="100" cy="100" r="88"/><circle class="fgc" cx="100" cy="100" r="88" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-fr)).toFixed(1)}"/></svg>
+      <div class="mid"><span class="big">${esc(fmtL(tot))}</span><span class="of">von ${esc(fmtL(g))}</span></div></div>
+    ${leftTxt}</section>`;
+
+  // Buttons
+  html+='<section class="drinks" aria-label="Getränk hinzufügen">';
+  for(const d of state.drinks){
+    html+=`<button class="drink ${d.counts===false?'nocount':''}" style="--c:var(--d-${esc(d.color)})" data-act="log" data-id="${esc(d.id)}" aria-label="${esc(d.name)}, ${d.ml} ml hinzufügen">
+      <span class="dic">${icon(d.icon)}</span><span class="n">${esc(d.name)}</span><span class="m">${esc(fmtL(d.ml))}</span></button>`;
+  }
+  if(!state.drinks.length) html+=`<div class="empty" style="grid-column:1/-1">Noch keine Getränke. Leg über die Regler oben links welche an.</div>`;
+  html+='</section>';
+
+  // Liste
+  const es=entries(k).map((e,i)=>({e,i})).sort((a,b)=>b.e.t-a.e.t);
+  html+=`<section class="card"><div class="cardhead"><h2>${k===t?'Heute getrunken':'Getrunken'}</h2><span class="sub">${es.length} ${es.length===1?'Eintrag':'Einträge'}</span></div><div class="entries">`;
+  if(!es.length) html+=`<div class="empty">Noch nichts eingetragen. Tipp oben auf ein Getränk.</div>`;
+  for(const {e,i} of es){
+    const d=drinkOf(e.d)||{name:e.n||'Getränk',icon:'glas',color:'blau'}, cnt=counts(e), open=state.openEntry===i;
+    const time=new Date(e.t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    html+=`<div class="entry" style="--c:var(--d-${esc(d.color)})"><span class="eic">${icon(d.icon)}</span>
+      <button class="ebtn" data-act="open" data-i="${i}" aria-expanded="${open}"><span class="en">${esc(d.name)}</span><span class="et">${time}</span><span class="em ${cnt?'':'nc'}">${esc(fmtL(e.ml))}</span></button>
+      <button class="del" data-act="del" data-i="${i}" aria-label="${esc(d.name)} um ${time} löschen">${UI.x}</button></div>`;
+    if(open) html+=`<div class="amt" style="--c:var(--d-${esc(d.color)})">${AMOUNTS.map(a=>`<button data-act="amt" data-i="${i}" data-ml="${a}" class="${e.ml===a?'on':''}">${a} ml</button>`).join('')}
+      <input id="amt-${i}" data-i="${i}" inputmode="numeric" placeholder="Eigene ml" aria-label="Eigene Menge in ml" style="width:7.5em;font:inherit;font-size:16px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"></div>`;
+  }
+  html+='</div></section>';
+
+  // Aufteilung
+  const by={}; for(const e of entries(k)){by[e.d]=(by[e.d]||0)+e.ml}
+  const parts=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+  if(parts.length>1){
+    const all=parts.reduce((s,p)=>s+p[1],0);
+    html+=`<section class="card"><h2>Aufteilung</h2><div class="split">${parts.map(([id,ml])=>{const d=drinkOf(id); return `<i style="width:${(ml/all*100).toFixed(1)}%;background:var(--d-${esc(d?d.color:'blau')})"></i>`}).join('')}</div>
+      <div class="legend">${parts.map(([id,ml])=>{const d=drinkOf(id)||{name:'Getränk',color:'blau',counts:true}; return `<div><span class="dot" style="background:var(--d-${esc(d.color)})"></span>${esc(d.name)}${d.counts===false?' <span class="nc">zählt nicht</span>':''}<span class="v">${esc(fmtL(ml))}</span></div>`}).join('')}</div></section>`;
+  }
+
+  // Woche
+  const sd=parseKey(k), mon=addDays(k,-((sd.getDay()+6)%7));
+  const days=[...Array(7)].map((_,i)=>addDays(mon,i));
+  const totals=days.map(total), max=Math.max(g*1.2,...totals);
+  const past=days.filter(dk=>dk<=t), avg=past.length?Math.round(past.reduce((s,dk)=>s+total(dk),0)/past.length):0;
+  const s=streak(), b=best();
+  html+=`<section class="card"><div class="cardhead"><h2>Diese Woche</h2><span class="sub">${days.filter(dk=>dk<=t&&met(dk)).length} von 7 Tagen geschafft</span></div>
+    <div class="week"><div class="goalline" style="bottom:calc(22px + ${(g/max*100).toFixed(1)}% * (150 - 22) / 150)"><span>${esc(fmtL(g))}</span></div>`;
+  days.forEach((dk,i)=>{
+    const fut=dk>t, h=fut?0:totals[i]/max*100;
+    html+=`<button class="wbar ${!fut&&totals[i]>=g?'met':''} ${dk===k?'sel':''} ${fut?'fut':''}" data-act="go" data-day="${dk}" ${fut?'disabled':''} aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{weekday:'long'}))}: ${esc(fmtL(totals[i]))}">
+      <span class="b" style="height:${h.toFixed(1)}%"></span><span class="l">${WD[i]}</span></button>`;
+  });
+  html+=`</div><div class="stats"><span class="stat">${UI.flame}${s} ${s===1?'Tag':'Tage'} in Folge</span><span class="stat">${UI.avg}Ø ${esc(fmtL(avg))} am Tag</span><span class="stat">${UI.trophy}Rekord ${b} ${b===1?'Tag':'Tage'}</span></div></section>`;
+  html+=`<p class="foot">Tipp auf einen Eintrag, um die Menge zu ändern. Deine Daten bleiben nur auf diesem Gerät.</p>`;
+  return html;
+}
+
+function viewEdit(){
+  const ds=state.draft.drinks, g=state.draft.goal;
+  let html=`<header class="head"><button class="btn" data-act="cancel">Abbrechen</button><span class="spacer"></span><button class="btn primary" data-act="save">Fertig</button></header>
+    <h1>Einstellungen</h1><div class="edit">
+    <div class="box"><span class="sublabel">Tagesziel</span>
+      <div class="chips">${GOALS.map(v=>`<button class="chip ${g===v?'on':''}" data-act="goal" data-v="${v}">${fmtL(v)}</button>`).join('')}</div>
+      <div class="field"><label for="goal">Eigenes Ziel in ml</label><input id="goal" data-f="goal" inputmode="numeric" value="${g}"></div>
+      <p class="hint">Als Faustregel gelten für Erwachsene etwa 1,5 bis 2 Liter am Tag.</p></div>
+    <span class="sublabel">Getränke</span>`;
+  ds.forEach((d,i)=>{
+    const id=esc(d.id);
+    html+=`<section class="ecard" style="--c:var(--d-${esc(d.color)})" data-idx="${i}">
+      <div class="ehead"><span class="dic">${icon(d.icon)}</span>
+        <div class="field"><label for="n-${id}">Name</label><input id="n-${id}" data-f="name" value="${esc(d.name)}" placeholder="z. B. Kakao"></div>
+        <div class="field" style="flex:0 0 6.5em"><label for="m-${id}">Größe (ml)</label><input id="m-${id}" data-f="ml" inputmode="numeric" value="${d.ml}"></div></div>
+      <button class="toggle ${d.counts!==false?'on':''}" data-act="counts" aria-pressed="${d.counts!==false}"><span class="tx">Zählt zum Tagesziel<span>${d.counts!==false?'Füllt den Ring.':'Wird nur angezeigt, füllt den Ring nicht.'}</span></span><span class="sw2"></span></button>
+      <div class="icons" role="radiogroup" aria-label="Icon">${Object.keys(ICONS).map(k=>`<button class="icopt ${d.icon===k?'on':''}" data-act="icon" data-v="${k}" role="radio" aria-checked="${d.icon===k}" aria-label="${ICONS[k][0]}">${icon(k)}</button>`).join('')}</div>
+      <div class="swatches" role="radiogroup" aria-label="Farbe">${COLORS.map(c=>`<button class="sw ${d.color===c?'on':''}" style="background:var(--d-${c})" data-act="color" data-v="${c}" role="radio" aria-checked="${d.color===c}" aria-label="${COLOR_NAMES[c]}"></button>`).join('')}</div>
+      <div class="eactions">
+        <button class="btn" data-act="up" ${i===0?'disabled':''} aria-label="Nach vorne">↑</button>
+        <button class="btn" data-act="down" ${i===ds.length-1?'disabled':''} aria-label="Nach hinten">↓</button>
+        <span class="spacer"></span>
+        ${state.confirmDel===d.id?`<button class="btn" data-act="nodel">Behalten</button><button class="btn dangerfill" data-act="rm">Wirklich löschen</button>`:`<button class="btn danger" data-act="askdel">Löschen</button>`}
+      </div></section>`;
+  });
+  const have=new Set(ds.map(d=>d.name.trim().toLowerCase()));
+  const tpl=TEMPLATES.map((t,n)=>[t,n]).filter(([t])=>!have.has(t.name.toLowerCase()));
+  html+=`<div class="box addbox"><span class="sublabel">Getränk hinzufügen</span>
+      ${tpl.length?`<div class="chips">${tpl.map(([t,n])=>`<button class="chip" data-act="tpl" data-n="${n}">${icon(t.icon)}${esc(t.name)}</button>`).join('')}</div>`:''}
+      <button class="btn wide" data-act="add">+ Eigenes Getränk</button></div>
+    <div class="box"><span class="sublabel">Datensicherung</span>
+      <p class="hint">Speichert alle Getränke und Einträge als Datei, zum Beispiel in iCloud Drive. Mit „Wiederherstellen“ holst du sie zurück. Dabei werden die aktuellen Daten ersetzt.</p>
+      <div class="eactions"><button class="btn" data-act="export" style="flex:1">Sichern</button><label class="btn" for="imp" style="flex:1;text-align:center;cursor:pointer">Wiederherstellen</label><input class="vh" type="file" id="imp" accept="application/json,.json"></div>
+      <p class="hint">${esc(lastBackupText())}</p>
+      ${state.backupMsg?`<p class="hint" role="status">${esc(state.backupMsg)}</p>`:''}</div>
+    <p class="foot">Beim Löschen eines Getränks bleiben frühere Einträge in der Statistik erhalten.</p></div>`;
+  return html;
+}
+
+/* ---------- Aktionen ---------- */
+let toastTimer=null;
+function toast(msg,undo){
+  clearTimeout(toastTimer);
+  toastEl.innerHTML=`<div class="toast" role="status"><span>${esc(msg)}</span>${undo?'<button data-undo>Rückgängig</button>':''}</div>`;
+  const b=toastEl.querySelector('[data-undo]'); if(b) b.onclick=()=>{undo();toastEl.innerHTML=''};
+  toastTimer=setTimeout(()=>{toastEl.innerHTML=''},4000);
+}
+function stampFor(k){
+  const now=new Date(); if(k===todayKey()) return now.getTime();
+  const d=parseKey(k); d.setHours(now.getHours(),now.getMinutes(),0,0); return d.getTime();
+}
+function logDrink(d){
+  const k=state.sel; const list=(state.days[k]=entries(k).slice());
+  const before=total(k);
+  list.push({d:d.id,ml:d.ml,t:stampFor(k)}); state.openEntry=null; save(); render();
+  const idx=list.length-1;
+  let msg=`${d.name} · ${fmtL(d.ml)}`;
+  if(before<goal()&&total(k)>=goal()) msg='Tagesziel geschafft!';
+  toast(msg,()=>{const l=entries(k).slice(); l.splice(idx,1); state.days[k]=l; save(); render()});
+}
+function syncDraft(){
+  if(state.view!=='edit') return;
+  const gi=app.querySelector('#goal'); if(gi){const v=Math.round(num(gi.value)); if(v>0) state.draft.goal=v}
+  app.querySelectorAll('.ecard').forEach(card=>{
+    const d=state.draft.drinks[+card.dataset.idx];
+    card.querySelectorAll('[data-f]').forEach(el=>{
+      if(el.dataset.f==='name') d.name=el.value;
+      if(el.dataset.f==='ml'){const v=Math.round(num(el.value)); d.ml=v>0?v:d.ml}
+    });
+  });
+}
+
+app.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled) return;
+  const act=b.dataset.act, k=state.sel;
+  if(state.view==='edit'){ editAction(act,b); return; }
+  switch(act){
+    case 'prev': state.sel=addDays(k,-1); state.openEntry=null; render(); break;
+    case 'next': if(k<todayKey()){state.sel=addDays(k,1); state.openEntry=null; render()} break;
+    case 'today': state.sel=todayKey(); state.openEntry=null; render(); break;
+    case 'go': state.sel=b.dataset.day; state.openEntry=null; render(); break;
+    case 'log': {const d=drinkOf(b.dataset.id); if(d) logDrink(d)} break;
+    case 'open': {const i=+b.dataset.i; state.openEntry=state.openEntry===i?null:i; render()} break;
+    case 'amt': {const i=+b.dataset.i, l=entries(k).slice(); if(l[i]){l[i]=Object.assign({},l[i],{ml:+b.dataset.ml}); state.days[k]=l; state.openEntry=null; save(); render()}} break;
+    case 'del': {
+      const i=+b.dataset.i, l=entries(k).slice(), gone=l[i]; if(!gone) break;
+      l.splice(i,1); state.days[k]=l; state.openEntry=null; save(); render();
+      const d=drinkOf(gone.d);
+      toast(`${d?d.name:'Eintrag'} gelöscht`,()=>{const l2=entries(k).slice(); l2.splice(i,0,gone); state.days[k]=l2; save(); render()});
+    } break;
+    case 'edit': state.draft={drinks:clone(state.drinks),goal:state.goal}; state.confirmDel=null; state.backupMsg=''; state.view='edit'; render(); window.scrollTo(0,0); break;
+    case 'bexport': doExport(); break;
+    case 'bsnooze': meta.snoozeUntil=Date.now()+3*864e5; saveMeta(); render(); break;
+  }
+});
+function editAction(act,b){
+  syncDraft();
+  const card=b.closest('.ecard'), i=card?+card.dataset.idx:-1, ds=state.draft.drinks;
+  if(act==='goal'){state.draft.goal=+b.dataset.v}
+  else if(act==='counts'){ds[i].counts=ds[i].counts===false}
+  else if(act==='icon'){ds[i].icon=b.dataset.v}
+  else if(act==='color'){ds[i].color=b.dataset.v}
+  else if(act==='up'&&i>0){[ds[i-1],ds[i]]=[ds[i],ds[i-1]]}
+  else if(act==='down'&&i<ds.length-1){[ds[i+1],ds[i]]=[ds[i],ds[i+1]]}
+  else if(act==='askdel'){state.confirmDel=ds[i].id}
+  else if(act==='nodel'){state.confirmDel=null}
+  else if(act==='rm'){ds.splice(i,1); state.confirmDel=null}
+  else if(act==='tpl'||act==='add'){
+    const t=act==='tpl'?TEMPLATES[+b.dataset.n]:{name:'',icon:'glas',color:COLORS.find(c=>!ds.some(d=>d.color===c))||'blau',ml:250};
+    ds.push(Object.assign({id:'g'+Date.now().toString(36),counts:true},clone(t)));
+    render();
+    const cards=app.querySelectorAll('.ecard'), last=cards[cards.length-1];
+    if(last){ last.scrollIntoView({block:'center'}); if(act==='add'){const n=last.querySelector('[data-f="name"]'); if(n) n.focus()} }
+    return;
+  }
+  else if(act==='cancel'){state.draft=null; state.view='today'; render(); window.scrollTo(0,0); return}
+  else if(act==='save'){
+    state.drinks=ds.map((d,n)=>Object.assign(d,{name:d.name.trim()||('Getränk '+(n+1)),ml:d.ml>0?d.ml:250}));
+    state.goal=state.draft.goal>0?state.draft.goal:2000;
+    state.draft=null; state.view='today'; save(); render(); window.scrollTo(0,0); return;
+  }
+  else if(act==='export'){doExport(); return}
+  render();
+}
+app.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.matches('.amt input')){
+    const i=+el.dataset.i, v=Math.round(num(el.value)), l=entries(state.sel).slice();
+    el.blur();
+    if(v>0&&l[i]){l[i]=Object.assign({},l[i],{ml:v}); state.days[state.sel]=l; state.openEntry=null; save()}
+    render(); return;
+  }
+  if(el.id==='imp'&&el.files[0]){
+    const r=new FileReader();
+    r.onload=()=>{try{
+      const o=JSON.parse(r.result); if(o.app!=='trinken'||!Array.isArray(o.drinks)||typeof o.days!=='object') throw 0;
+      state.drinks=o.drinks; state.goal=o.goal>0?o.goal:2000; state.days=o.days||{}; save();
+      state.draft={drinks:clone(state.drinks),goal:state.goal};
+      const t=Date.parse(o.exported); markBackup(isFinite(t)?t:Date.now());
+      state.backupMsg='Wiederhergestellt: '+o.drinks.length+' Getränke.';
+    }catch(err){state.backupMsg='Diese Datei ist keine Trinken-Sicherung.'} render()};
+    r.readAsText(el.files[0]);
+  }
+});
+app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('.amt input'))e.target.blur()});
+
+// Tageswechsel um Mitternacht
+let lastToday=todayKey();
+setInterval(()=>{const t=todayKey(); if(t!==lastToday){ if(state.sel===lastToday) state.sel=t; lastToday=t; if(state.view==='today') render() }},60000);
+
+load(); render();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
