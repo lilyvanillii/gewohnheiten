@@ -283,7 +283,38 @@ function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt
 function val(k,h){return (state.days[k]&&state.days[k][h.id])||0}
 function goalOf(h){return h.kind==='check'?1:(h.goal>0?h.goal:1)}
 function met(k,h){return val(k,h)>=goalOf(h)}
-function freqOf(h){return h.freq==='woche'||h.freq==='monat'?h.freq:'tag'}
+function freqOf(h){return h.freq==='woche'||h.freq==='monat'||h.freq==='alle'?h.freq:'tag'}
+function everyOf(h){return Math.min(14,Math.max(2,Math.round(h.every||2)))}
+function dayDiff(a,b){return Math.round((parseKey(a)-parseKey(b))/864e5)}
+/* "Alle X Tage": fällig, sobald das letzte Mal X Tage her ist */
+function lastDone(h,k,maxBack){for(let i=0;i<=(maxBack||400);i++){const d=addDays(k,-i); if(met(d,h)) return d} return null}
+function everyStatus(h,k){
+  const n=everyOf(h), d=lastDone(h,k);
+  if(!d) return {due:true,gap:null,next:0};
+  const gap=dayDiff(k,d);
+  return {due:gap>=n,gap,next:n-gap,doneToday:gap===0};
+}
+function everyText(h,k){
+  const st=everyStatus(h,k), isToday=k===todayKey();
+  if(st.doneToday) return 'Erledigt';
+  if(!st.due) return st.next===1?(isToday?'Wieder fällig morgen':'Am nächsten Tag fällig'):`Wieder fällig in ${st.next} Tagen`;
+  if(st.gap===null) return isToday?'Heute fällig':'Fällig';
+  const late=st.gap-everyOf(h);
+  return late>0?`Überfällig seit ${late} ${late===1?'Tag':'Tagen'}`:(isToday?'Heute fällig':'Fällig');
+}
+function everyStreak(h){
+  const n=everyOf(h), t=todayKey(); let d=lastDone(h,t);
+  if(!d||dayDiff(t,d)>n) return 0;
+  let c=1;
+  for(;c<3650;c++){ let prev=null; for(let i=1;i<=n;i++){const x=addDays(d,-i); if(met(x,h)){prev=x;break}} if(!prev) break; d=prev }
+  return c;
+}
+function everyBest(h){
+  const n=everyOf(h), ks=Object.keys(state.days).filter(k=>met(k,h)).sort();
+  let run=0,best=0,prev=null;
+  for(const k of ks){ run=prev&&dayDiff(k,prev)<=n?run+1:1; if(run>best)best=run; prev=k }
+  return best;
+}
 function timesOf(h){const f=freqOf(h), max=f==='woche'?7:31; return Math.min(max,Math.max(1,Math.round(h.times||1)))}
 function pStart(k,f){ if(f==='woche'){const d=parseKey(k);return addDays(k,-((d.getDay()+6)%7))} if(f==='monat') return k.slice(0,8)+'01'; return k }
 function pPrev(p,f){ if(f==='woche') return addDays(p,-7); if(f==='monat'){const d=parseKey(p);d.setMonth(d.getMonth()-1);return keyOf(d)} return addDays(p,-1) }
@@ -295,12 +326,13 @@ function pCount(h,p){
 }
 function pMet(h,p){return freqOf(h)==='tag'?met(p,h):pCount(h,p)>=timesOf(h)}
 function streak(h){
+  if(freqOf(h)==='alle') return everyStreak(h);
   const f=freqOf(h); let p=pStart(todayKey(),f); if(!pMet(h,p)) p=pPrev(p,f);
   let n=0; while(pMet(h,p)&&n<3650){n++;p=pPrev(p,f)} return n;
 }
-function streakUnit(h,n){const f=freqOf(h); return f==='woche'?(n===1?'Woche':'Wochen'):f==='monat'?(n===1?'Monat':'Monate'):(n===1?'Tag':'Tage')}
-function freqText(h){const f=freqOf(h), n=timesOf(h); return f==='woche'?`${n}× pro Woche`:f==='monat'?`${n}× pro Monat`:'Täglich'}
-function periodDone(h,k){return freqOf(h)==='tag'?met(k,h):(met(k,h)||pMet(h,pStart(k,freqOf(h))))}
+function streakUnit(h,n){const f=freqOf(h); if(f==='alle') return 'Mal'; return f==='woche'?(n===1?'Woche':'Wochen'):f==='monat'?(n===1?'Monat':'Monate'):(n===1?'Tag':'Tage')}
+function freqText(h){const f=freqOf(h), n=timesOf(h); if(f==='alle') return `Alle ${everyOf(h)} Tage`; return f==='woche'?`${n}× pro Woche`:f==='monat'?`${n}× pro Monat`:'Täglich'}
+function periodDone(h,k){if(freqOf(h)==='alle') return !everyStatus(h,k).due; return freqOf(h)==='tag'?met(k,h):(met(k,h)||pMet(h,pStart(k,freqOf(h))))}
 
 /* ---------- Speicher ---------- */
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({habits:state.habits,days:state.days}))}catch(e){}}
@@ -411,11 +443,12 @@ function viewToday(){
   const C=2*Math.PI*21;
   for(const h of hs){
     const v=val(k,h), g=goalOf(h), fr=Math.min(1,v/g), ok=v>=g, s=streak(h), id=esc(h.id), open=state.open.has(h.id);
-    const f=freqOf(h), pc=f==='tag'?0:pCount(h,pStart(k,f));
+    const f=freqOf(h), pc=(f==='woche'||f==='monat')?pCount(h,pStart(k,f)):0;
     let sub=h.kind==='check'
       ? (f==='tag'?(ok?'Erledigt':'1× am Tag'):'')
       : `<b>${fmt(v)}</b> / ${fmt(g)} ${esc(h.unit)}`;
-    if(f!=='tag') sub+=`${sub?' · ':''}<b>${pc}</b> von ${timesOf(h)} ${f==='woche'?'diese Woche':'diesen Monat'}`;
+    if(f==='alle'){ const et=everyText(h,k); sub+=`${sub?' · ':''}${et==='Erledigt'?et:`<b>${et}</b>`}` }
+    else if(f!=='tag') sub+=`${sub?' · ':''}<b>${pc}</b> von ${timesOf(h)} ${f==='woche'?'diese Woche':'diesen Monat'}`;
     const streakTxt=s?` · ${s} ${streakUnit(h,s)} in Folge`:'';
     let btn;
     if(h.kind==='check'||ok&&!open){
@@ -453,6 +486,7 @@ function viewToday(){
 }
 
 function bestStreak(h){
+  if(freqOf(h)==='alle') return everyBest(h);
   const ks=Object.keys(state.days).filter(k=>state.days[k]&&state.days[k][h.id]>0).sort();
   if(!ks.length) return 0;
   const f=freqOf(h), t=todayKey(), cur=pStart(t,f);
@@ -501,7 +535,7 @@ function viewDetail(){
   <div class="box" style="--c:var(--h-${esc(h.color)})">${heatHTML(h,true)}</div>
   <div class="stats" style="--c:var(--h-${esc(h.color)})">
     <span class="stat">${ICON.flame}${s} ${streakUnit(h,s)} in Folge</span>
-    <span class="stat">${ICON.rep}${pc} von ${pTot} ${pName}</span>
+    <span class="stat">${ICON.rep}${f==='alle'?esc(everyText(h,t)):`${pc} von ${pTot} ${pName}`}</span>
     <span class="stat">${ICON.trophy}Rekord ${best} ${streakUnit(h,best)}</span>
   </div>`;
   if(state.error) html+=`<div class="err" role="status">${esc(state.error)}</div>`;
@@ -545,10 +579,12 @@ function editCard(h,i,hs,single){
           <button data-act="kind" data-k="menge" class="${h.kind!=='check'?'on':''}" role="radio" aria-checked="${h.kind!=='check'}">Menge zählen</button>
         </div></div>
       <div class="field"><span class="sublabel">Wie oft?</span>
-        <div class="seg three" role="radiogroup" aria-label="Häufigkeit">
-          ${[['tag','Täglich'],['woche','Pro Woche'],['monat','Pro Monat']].map(([fv,fl])=>`<button data-act="freq" data-v="${fv}" class="${freqOf(h)===fv?'on':''}" role="radio" aria-checked="${freqOf(h)===fv}">${fl}</button>`).join('')}
+        <div class="seg" role="radiogroup" aria-label="Häufigkeit">
+          ${[['tag','Täglich'],['alle','Alle paar Tage'],['woche','Pro Woche'],['monat','Pro Monat']].map(([fv,fl])=>`<button data-act="freq" data-v="${fv}" class="${freqOf(h)===fv?'on':''}" role="radio" aria-checked="${freqOf(h)===fv}">${fl}</button>`).join('')}
         </div>
-        ${freqOf(h)==='tag'?'':`<div class="timesrow"><button class="step" data-act="tminus" aria-label="Seltener">−</button><b>${timesOf(h)}×</b><button class="step" data-act="tplus" aria-label="Öfter">+</button><span>${freqOf(h)==='woche'?'pro Woche':'pro Monat'}</span></div>`}</div>
+        ${freqOf(h)==='alle'?`<div class="timesrow"><span>Alle</span><button class="step" data-act="eminus" aria-label="Kürzerer Abstand">−</button><b>${everyOf(h)}</b><button class="step" data-act="eplus" aria-label="Längerer Abstand">+</button><span>Tage</span></div>
+        <p class="hint">Sobald du sie erledigt hast, ist sie erst nach ${everyOf(h)} Tagen wieder fällig.</p>`:''}
+        ${freqOf(h)==='tag'||freqOf(h)==='alle'?'':`<div class="timesrow"><button class="step" data-act="tminus" aria-label="Seltener">−</button><b>${timesOf(h)}×</b><button class="step" data-act="tplus" aria-label="Öfter">+</button><span>${freqOf(h)==='woche'?'pro Woche':'pro Monat'}</span></div>`}</div>
       ${h.kind==='check'?'<p class="hint">Du hakst sie einfach ab, sobald du sie erledigt hast.</p>':`
       <div class="grid2">
         <div class="field"><label for="us-${id}">Einheit</label><select id="us-${id}" data-f="unitsel">
@@ -590,7 +626,7 @@ function newHabit(){
   const used=state.habits.map(x=>x.color); const c=COLORS.find(x=>!used.includes(x))||COLORS[state.habits.length%COLORS.length];
   return {id:'h'+Date.now().toString(36),name:'',icon:'stern',kind:'check',unit:'',goal:1,step:1,color:c};
 }
-function cleanHabit(h,n){const o=Object.assign(h,{freq:freqOf(h),times:timesOf(h),name:h.name.trim()||('Gewohnheit '+(n+1)),unit:(h.unit||'').trim(),goal:h.goal>0?h.goal:1,step:h.step>0?h.step:1,icon:h.icon||'stern'});delete o._custom;return o}
+function cleanHabit(h,n){const o=Object.assign(h,{freq:freqOf(h),times:timesOf(h),every:everyOf(h),name:h.name.trim()||('Gewohnheit '+(n+1)),unit:(h.unit||'').trim(),goal:h.goal>0?h.goal:1,step:h.step>0?h.step:1,icon:h.icon||'stern'});delete o._custom;return o}
 
 function viewEdit(){
   if(state.editOne) return viewEditOne();
@@ -660,7 +696,9 @@ function editAction(act,b){
   const card=b.closest('.ecard'), i=card?+card.dataset.idx:-1, d=state.draft;
   if(act==='color'){d[i].color=b.dataset.c}
   else if(act==='icon'){d[i].icon=b.dataset.i}
-  else if(act==='freq'){d[i].freq=b.dataset.v; if(b.dataset.v!=='tag'&&!d[i].times) d[i].times=b.dataset.v==='woche'?3:4; d[i].times=timesOf(d[i])}
+  else if(act==='eminus'){d[i].every=Math.max(2,everyOf(d[i])-1)}
+  else if(act==='eplus'){d[i].every=Math.min(14,everyOf(d[i])+1)}
+  else if(act==='freq'){d[i].freq=b.dataset.v; if(b.dataset.v==='alle') d[i].every=everyOf(d[i]); if(b.dataset.v!=='tag'&&!d[i].times) d[i].times=b.dataset.v==='woche'?3:4; d[i].times=timesOf(d[i])}
   else if(act==='tminus'){d[i].times=Math.max(1,timesOf(d[i])-1)}
   else if(act==='tplus'){d[i].times=Math.min(freqOf(d[i])==='woche'?7:31,timesOf(d[i])+1)}
   else if(act==='kind'){
