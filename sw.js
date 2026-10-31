@@ -1,5 +1,5 @@
 // Offline-Cache: App-Dateien sofort verfügbar, Updates werden im Hintergrund geladen.
-const CACHE = 'gewohnheiten-v5';
+const CACHE = 'gewohnheiten-v6';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
