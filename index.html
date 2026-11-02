@@ -103,14 +103,14 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 .dot.l3{background:var(--c)}
 
 /* Monatsübersicht */
-.mbox{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:12px 10px}
-.mgrid{display:grid;column-gap:2px;row-gap:6px;align-items:center}
+.mbox{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:12px 8px}
+.mgrid{display:grid;column-gap:2px;row-gap:8px;align-items:center}
 .mwd,.mday{font-size:.56rem;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap;overflow:visible;font-weight:600}
 .mwd.we,.mday.we{color:color-mix(in oklab,var(--accent) 75%,var(--muted))}
 .mday.today{color:var(--ink);font-weight:800}
-.mic{--c:var(--h-blau);width:24px;height:24px;border-radius:7px;background:color-mix(in oklab,var(--c) 20%,var(--surface));color:var(--c);display:grid;place-items:center;border:0;padding:0}
-.mic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.mc{--c:var(--h-blau);border:0;padding:0;height:20px;border-radius:3px;background:color-mix(in oklab,var(--c) 10%,var(--surface));min-width:0}
+.mic{--c:var(--h-blau);width:22px;height:22px;border-radius:7px;background:color-mix(in oklab,var(--c) 20%,var(--surface));color:var(--c);display:grid;place-items:center;border:0;padding:0}
+.mic svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mc{--c:var(--h-blau);border:0;padding:0;width:100%;aspect-ratio:1;max-width:100%;border-radius:2.5px;background:color-mix(in oklab,var(--c) 10%,var(--surface));min-width:0}
 .mc.l1{background:color-mix(in oklab,var(--c) 35%,var(--surface))}
 .mc.l2{background:color-mix(in oklab,var(--c) 62%,var(--surface))}
 .mc.l3{background:var(--c)}
@@ -301,7 +301,7 @@ const TEMPLATES=[
 ];
 function icon(k){const i=ICONS[k]||ICONS.stern;return `<svg viewBox="0 0 24 24" aria-hidden="true">${i[1]}</svg>`}
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
-const APP_VERSION='2. November 2026, Monatsübersicht';
+const APP_VERSION='2. November 2026, Monatsübersicht mit Quadraten';
 const LS='habit-tracker-v1';
 const LSM='habit-tracker-meta';
 const BACKUP_DAYS=14;
@@ -581,7 +581,7 @@ function viewMonth(){
   </header>`;
   if(!hs.length) return html+`<div class="empty">Noch keine Gewohnheiten. Leg auf der Seite „Heute“ über + deine erste an.</div>`;
   const we=d=>{const w=parseKey(d).getDay(); return w===0||w===6};
-  html+=`<div class="mbox"><div class="mgrid" style="grid-template-columns:24px repeat(${N},minmax(0,1fr))">`;
+  html+=`<div class="mbox"><div class="mgrid" style="grid-template-columns:22px repeat(${N},minmax(0,1fr))">`;
   html+='<span></span>'+days.map(d=>`<span class="mwd ${we(d)?'we':''}" aria-hidden="true">${'SMDMDFS'[parseKey(d).getDay()]}</span>`).join('');
   const shown=new Set([1,5,10,15,20,25,N]); if(N===31) shown.delete(30);
   if(monthKey(t)===m){const td=+t.slice(8); shown.delete(td-1); shown.delete(td+1); shown.add(td)}
