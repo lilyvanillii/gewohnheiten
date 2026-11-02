@@ -78,6 +78,15 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 .act svg.ring .bgc{stroke:color-mix(in oklab,var(--c) 22%,transparent)}
 .act svg.ring .fgc{stroke:var(--c);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
 .act.done svg.ring{display:none}
+.logs{display:flex;flex-direction:column;margin-top:2px}
+.lrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.lrow:first-child{border-top:0}
+.ltime{font:inherit;font-size:16px;font-variant-numeric:tabular-nums;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);min-width:0}
+.lamt{flex:1;font-weight:600;font-variant-numeric:tabular-nums}
+.lamt.muted{color:var(--muted);font-weight:500}
+.ldel{width:34px;height:34px;border-radius:10px;border:0;background:none;color:var(--muted);display:grid;place-items:center;flex:none}
+.ldel svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.loghead{display:flex;align-items:baseline;gap:8px;font-size:.85rem;color:var(--muted);margin-top:4px}
 .panel{display:flex;align-items:center;gap:10px;padding:8px;border-radius:18px;background:color-mix(in oklab,var(--c) 5%,var(--bg))}
 .step{width:48px;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--surface);
   font-size:1.5rem;line-height:1;display:grid;place-items:center;flex:none;color:var(--ink)}
@@ -277,7 +286,7 @@ function lastBackupText(){
   return 'Zuletzt gesichert am '+new Date(meta.lastBackup).toLocaleDateString('de-DE',{day:'numeric',month:'long',year:'numeric'})+'.';
 }
 async function doExport(){
-  const data=JSON.stringify({app:'gewohnheiten',version:1,exported:new Date().toISOString(),habits:state.habits,days:state.days},null,1);
+  const data=JSON.stringify({app:'gewohnheiten',version:1,exported:new Date().toISOString(),habits:state.habits,days:state.days,logs:state.logs},null,1);
   const file=new File([data],'gewohnheiten-'+todayKey()+'.json',{type:'application/json'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
     try{await navigator.share({files:[file],title:'Gewohnheiten-Sicherung'})}
@@ -288,7 +297,7 @@ async function doExport(){
   markBackup(); state.backupMsg='Sicherung erstellt.'; render(); return true;
 }
 
-const state={habits:clone(DEFAULT_HABITS),days:{},sel:todayKey(),view:'today',draft:null,confirmDel:null,open:new Set(),detailId:null,month:null,editOne:null,isNew:false,mode:'local',error:''};
+const state={habits:clone(DEFAULT_HABITS),days:{},logs:{},sel:todayKey(),view:'today',draft:null,confirmDel:null,open:new Set(),detailId:null,month:null,editOne:null,isNew:false,mode:'local',error:''};
 let col=null; const pending=new Map(); const timers={}; let chain=Promise.resolve(); let renderDeferred=false;
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
@@ -354,8 +363,8 @@ function freqText(h){const f=freqOf(h), n=timesOf(h); if(f==='alle') return `All
 function periodDone(h,k){if(freqOf(h)==='alle') return !everyStatus(h,k).due; return freqOf(h)==='tag'?met(k,h):(met(k,h)||pMet(h,pStart(k,freqOf(h))))}
 
 /* ---------- Speicher ---------- */
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({habits:state.habits,days:state.days}))}catch(e){}}
-function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){if(Array.isArray(s.habits))state.habits=s.habits;if(s.days)state.days=s.days}}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify({habits:state.habits,days:state.days,logs:state.logs}))}catch(e){}}
+function loadLocal(){try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){if(Array.isArray(s.habits))state.habits=s.habits;if(s.days)state.days=s.days;if(s.logs&&typeof s.logs==='object')state.logs=s.logs}}catch(e){}}
 
 function showErr(e){
   const c=e&&e.code;
@@ -468,6 +477,8 @@ function viewToday(){
       : `<b>${fmt(v)}</b> / ${fmt(g)} ${esc(h.unit)}`;
     if(f==='alle'){ const et=everyText(h,k); sub+=`${sub?' · ':''}${et==='Erledigt'?et:`<b>${et}</b>`}` }
     else if(f!=='tag') sub+=`${sub?' · ':''}<b>${pc}</b> von ${timesOf(h)} ${f==='woche'?'diese Woche':'diesen Monat'}`;
+    const lt=lastTime(k,h);
+    if(lt){ if(h.kind==='check'&&sub.includes('Erledigt')) sub=sub.replace('Erledigt',`Erledigt um ${lt}`); else sub+=` · ${h.kind==='check'?'um':'zuletzt'} ${lt}` }
     const streakTxt=s?` · ${s} ${streakUnit(h,s)} in Folge`:'';
     let btn;
     if(h.kind==='check'||ok&&!open){
@@ -567,6 +578,21 @@ function viewDetail(){
       <button class="step" data-act="minus" data-id="${id}" aria-label="Verringern">−</button>
       <div class="val"><input id="v-${id}" data-id="${id}" inputmode="decimal" enterkeyhint="done" value="${fmt(v)}" aria-label="${esc(h.name)} in ${esc(h.unit)}"><span class="of">/ ${fmt(g)} ${esc(h.unit)}</span></div>
       <button class="step" data-act="plus" data-id="${id}" aria-label="Erhöhen">+</button></div>`;
+  }
+  {
+    const L=logsOf(k,h).map((e,j)=>({e,j})).sort((a,b)=>a.e.t-b.e.t);
+    const logged=Math.round(L.reduce((sum,x)=>sum+x.e.v,0)*100)/100, rest=Math.round((v-logged)*100)/100;
+    if(L.length||rest>0){
+      html+=`<div class="loghead">Uhrzeiten</div><div class="logs">`;
+      for(const {e,j} of L){
+        const amt=h.kind==='check'?'Erledigt':`+${fmt(e.v)} ${esc(h.unit)}`;
+        html+=`<div class="lrow"><input type="time" class="ltime" id="lt-${id}-${j}" data-id="${id}" data-j="${j}" value="${hm(e.t)}" aria-label="Uhrzeit ändern">
+          <span class="lamt">${amt}</span>
+          <button class="ldel" data-act="ldel" data-id="${id}" data-j="${j}" aria-label="Eintrag um ${hm(e.t)} löschen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
+      }
+      if(rest>0) html+=`<div class="lrow"><span class="lamt muted">${h.kind==='check'?'Erledigt':`${fmt(rest)} ${esc(h.unit)}`} ohne Uhrzeit</span></div>`;
+      html+='</div>';
+    }
   }
   html+='</div>';
   // Monatskalender
@@ -668,9 +694,28 @@ function viewEdit(){
 }
 
 /* ---------- Aktionen ---------- */
+/* Uhrzeiten: jede Erhöhung wird mit Zeitpunkt in state.logs[Tag][id] gespeichert */
+function logsOf(k,h){return (state.logs[k]&&state.logs[k][h.id])||[]}
+function setLogs(k,h,arr){
+  const day=Object.assign({},state.logs[k]||{});
+  if(arr.length) day[h.id]=arr; else delete day[h.id];
+  if(Object.keys(day).length) state.logs[k]=day; else delete state.logs[k];
+}
+function stampFor(k){const now=new Date(); if(k===todayKey()) return now.getTime(); const d=parseKey(k); d.setHours(now.getHours(),now.getMinutes(),0,0); return d.getTime()}
+function hm(t){return new Date(t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}
+function lastTime(k,h){const L=logsOf(k,h); return L.length?hm(Math.max(...L.map(e=>e.t))):''}
 function setVal(h,v){
-  const k=state.sel; state.days[k]=Object.assign({},state.days[k]||{});
-  state.days[k][h.id]=Math.max(0,Math.round(v*100)/100); queueDay(k); render();
+  const k=state.sel, old=val(k,h), nv=Math.max(0,Math.round(v*100)/100);
+  state.days[k]=Object.assign({},state.days[k]||{}); state.days[k][h.id]=nv;
+  let L=logsOf(k,h).slice().sort((a,b)=>a.t-b.t);
+  const delta=Math.round((nv-old)*100)/100;
+  if(delta>0) L.push({t:stampFor(k),v:delta});
+  else if(delta<0){
+    let r=-delta;
+    while(r>1e-9&&L.length){const last=L[L.length-1]; if(last.v<=r+1e-9){r-=last.v; L.pop()} else {L[L.length-1]={t:last.t,v:Math.round((last.v-r)*100)/100}; r=0}}
+  }
+  if(nv===0) L=[];
+  setLogs(k,h,L); queueDay(k); render();
 }
 function syncDraftFields(){
   if(state.view!=='edit') return;
@@ -698,6 +743,12 @@ app.addEventListener('click',e=>{
     case 'plus': if(h) setVal(h,val(state.sel,h)+(h.step>0?h.step:1)); break;
     case 'minus': if(h) setVal(h,val(state.sel,h)-(h.step>0?h.step:1)); break;
     case 'toggle': if(h) setVal(h,val(state.sel,h)>=1?0:1); break;
+    case 'ldel': if(h){
+      const k=state.sel, L=logsOf(k,h).slice(), j=+b.dataset.j, e2=L[j]; if(!e2) break;
+      L.splice(j,1); setLogs(k,h,L);
+      state.days[k]=Object.assign({},state.days[k]||{}); state.days[k][h.id]=Math.max(0,Math.round((val(k,h)-e2.v)*100)/100);
+      queueDay(k); render();
+    } break;
     case 'detail': if(h){state.detailId=h.id; state.month=monthKey(state.sel); state.view='detail'; render(); window.scrollTo(0,0)} break;
     case 'back': state.view='today'; render(); window.scrollTo(0,0); break;
     case 'mprev': {const d=parseKey((state.month||monthKey(state.sel))+'-01'); d.setMonth(d.getMonth()-1); state.month=monthKey(keyOf(d)); render()} break;
@@ -761,6 +812,12 @@ function editAction(act,b){
   render();
 }
 app.addEventListener('change',e=>{
+  if(e.target.matches('.ltime')){
+    const h=state.habits.find(x=>x.id===e.target.dataset.id), j=+e.target.dataset.j, k=state.sel;
+    const m=/^(\d{1,2}):(\d{2})/.exec(e.target.value||'');
+    if(h&&m){ const L=logsOf(k,h).slice(); if(L[j]){ const d=parseKey(k); d.setHours(+m[1],+m[2],0,0); L[j]={t:d.getTime(),v:L[j].v}; setLogs(k,h,L); saveLocal(); render() } }
+    return;
+  }
   if(e.target.matches('.val input')){const h=state.habits.find(x=>x.id===e.target.dataset.id); if(h){e.target.blur();setVal(h,num(e.target.value))}}
   if(e.target.matches('select[data-f="unitsel"]')){syncDraftFields();render();
     if(e.target.value==='__eigene'){const f=app.querySelector('#u-'+CSS.escape(e.target.id.slice(3)));if(f)f.focus()}}
@@ -770,7 +827,7 @@ app.addEventListener('change',e=>{
   const r=new FileReader();
   r.onload=()=>{try{
     const o=JSON.parse(r.result); if(!Array.isArray(o.habits)||typeof o.days!=='object') throw 0;
-    state.habits=o.habits; state.days=o.days||{}; state.draft=clone(state.habits); saveLocal();
+    state.habits=o.habits; state.days=o.days||{}; state.logs=(o.logs&&typeof o.logs==='object')?o.logs:{}; state.draft=clone(state.habits); saveLocal();
     const t=Date.parse(o.exported); markBackup(isFinite(t)?t:Date.now());
     state.backupMsg='Wiederhergestellt: '+o.habits.length+' Gewohnheiten.';
   }catch(err){state.backupMsg='Diese Datei ist keine Gewohnheiten-Sicherung.'} render()};
