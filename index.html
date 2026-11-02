@@ -265,6 +265,7 @@ const TEMPLATES=[
 ];
 function icon(k){const i=ICONS[k]||ICONS.stern;return `<svg viewBox="0 0 24 24" aria-hidden="true">${i[1]}</svg>`}
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const APP_VERSION='2. November 2026, Uhrzeiten';
 const LS='habit-tracker-v1';
 const LSM='habit-tracker-meta';
 const BACKUP_DAYS=14;
@@ -689,7 +690,7 @@ function viewEdit(){
       <div class="eactions"><button class="btn" data-act="export">Sichern</button><label class="btn" for="imp" style="text-align:center;cursor:pointer">Wiederherstellen</label><input class="vh" type="file" id="imp" accept="application/json,.json"></div>
       <p class="hint">${esc(lastBackupText())}</p>
       ${state.backupMsg?`<p class="hint" role="status">${esc(state.backupMsg)}</p>`:''}</div>
-    <p class="foot">Beim Löschen bleiben frühere Einträge erhalten, sie werden nur nicht mehr angezeigt.</p></div>`;
+    <p class="foot">Beim Löschen bleiben frühere Einträge erhalten, sie werden nur nicht mehr angezeigt.<br>App-Stand: ${APP_VERSION}</p></div>`;
   return html;
 }
 
@@ -843,7 +844,7 @@ setInterval(()=>{const t=todayKey(); if(t!==lastToday){if(state.sel===lastToday)
 
 loadLocal(); render();
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js",{updateViaCache:'none'}).catch(()=>{});
 })();
 </script>
 </body>
