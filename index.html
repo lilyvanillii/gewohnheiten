@@ -114,7 +114,11 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 .mc.l1{background:color-mix(in oklab,var(--c) 35%,var(--surface))}
 .mc.l2{background:color-mix(in oklab,var(--c) 62%,var(--surface))}
 .mc.l3{background:var(--c)}
-.mc.cov{background:color-mix(in oklab,var(--c) 22%,var(--surface));background-image:repeating-linear-gradient(135deg,transparent 0 3px,color-mix(in oklab,var(--c) 30%,transparent) 3px 4px)}
+.mc{position:relative}
+/* Abgedeckt: Tag zählt mit, weil das Wochen-/Monats-/Abstandsziel erreicht ist – kleines Quadrat in der Mitte */
+.dot.cov::after,.mc.cov::after,.lgcov::after{content:"";position:absolute;inset:30%;border-radius:1.5px;background:var(--c)}
+.dot.fut.cov{visibility:visible;background:color-mix(in oklab,var(--c) 6%,var(--surface))}
+.lgcov{position:relative}
 .mc.today{outline:1.5px solid var(--ink);outline-offset:1px}
 .mc.fut{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
 .mlegend{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--muted);align-items:center;margin-top:10px}
@@ -221,6 +225,7 @@ h1{font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05;ma
 .cd.l1 i,.cd.l2 i{background:color-mix(in oklab,var(--c) 60%,var(--surface))}
 .cd.l3{background:color-mix(in oklab,var(--c) 22%,var(--surface))}
 .cd.l3 i{background:var(--c)}
+.cd.cov i{width:6px;height:6px;border-radius:1.5px;background:var(--c)}
 .cd.other{color:color-mix(in oklab,var(--muted) 55%,var(--surface))}
 .cd.fut{color:color-mix(in oklab,var(--muted) 45%,var(--surface));cursor:default}
 .cd.sel{border-color:var(--c);background:color-mix(in oklab,var(--c) 14%,var(--surface))}
@@ -301,7 +306,7 @@ const TEMPLATES=[
 ];
 function icon(k){const i=ICONS[k]||ICONS.stern;return `<svg viewBox="0 0 24 24" aria-hidden="true">${i[1]}</svg>`}
 const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
-const APP_VERSION='2. November 2026, Monatsübersicht mit Quadraten';
+const APP_VERSION='4. November 2026, mit erledigte Tage';
 const LS='habit-tracker-v1';
 const LSM='habit-tracker-meta';
 const BACKUP_DAYS=14;
@@ -397,6 +402,11 @@ function streak(h){
 }
 function streakUnit(h,n){const f=freqOf(h); if(f==='alle') return 'Mal'; return f==='woche'?(n===1?'Woche':'Wochen'):f==='monat'?(n===1?'Monat':'Monate'):(n===1?'Tag':'Tage')}
 function freqText(h){const f=freqOf(h), n=timesOf(h); if(f==='alle') return `Alle ${everyOf(h)} Tage`; return f==='woche'?`${n}× pro Woche`:f==='monat'?`${n}× pro Monat`:'Täglich'}
+function coveredDay(h,d){
+  const f=freqOf(h); if(f==='tag'||met(d,h)) return false;
+  if(f==='alle'){const n=everyOf(h); for(let i=1;i<n;i++){ if(met(addDays(d,-i),h)) return true } return false}
+  return pMet(h,pStart(d,f));
+}
 function periodDone(h,k){if(freqOf(h)==='alle') return !everyStatus(h,k).due; return freqOf(h)==='tag'?met(k,h):(met(k,h)||pMet(h,pStart(k,freqOf(h))))}
 
 /* ---------- Speicher ---------- */
@@ -547,9 +557,9 @@ function viewToday(){
     html+='<div class="grid">';
     for(let i=0;i<WEEKS*7;i++){
       const dk=addDays(start,i);
-      if(dk>t){html+='<span class="dot fut"></span>';continue}
-      const f=Math.min(1,val(dk,h)/g), lv=f>=1?3:f>=.5?2:f>0?1:0;
-      html+=`<button class="dot ${lv?'l'+lv:''} ${dk===k?'sel':''}" data-act="go" data-day="${dk}" aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))}"></button>`;
+      if(dk>t){html+=`<span class="dot fut ${coveredDay(h,dk)?'cov':''}"></span>`;continue}
+      const f=Math.min(1,val(dk,h)/g), lv=f>=1?3:f>=.5?2:f>0?1:0, cov=lv<3&&coveredDay(h,dk);
+      html+=`<button class="dot ${lv?'l'+lv:''} ${cov?'cov':''} ${dk===k?'sel':''}" data-act="go" data-day="${dk}" aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))}${cov?': mit erledigt':''}"></button>`;
     }
     html+='</div></article>';
   }
@@ -590,13 +600,13 @@ function viewMonth(){
     const c=`--c:var(--h-${esc(h.color)})`, g=goalOf(h), f=freqOf(h);
     html+=`<button class="mic" style="${c}" data-act="mopen" data-id="${esc(h.id)}" aria-label="${esc(h.name)} öffnen">${icon(h.icon)}</button>`;
     for(const d of days){
-      if(d>t){html+=`<span class="mc fut" style="${c}"></span>`;continue}
+      if(d>t){html+=`<span class="mc fut ${coveredDay(h,d)?'cov':''}" style="${c}"></span>`;continue}
       const fr=Math.min(1,val(d,h)/g), lv=fr>=1?3:fr>=.5?2:fr>0?1:0;
-      const cov=!lv&&f!=='tag'&&periodDone(h,d);
-      html+=`<button class="mc ${lv?'l'+lv:''} ${cov?'cov':''} ${d===t?'today':''}" style="${c}" data-act="mcell" data-id="${esc(h.id)}" data-day="${d}" aria-label="${esc(h.name)}, ${esc(parseKey(d).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))}${lv===3?': erledigt':lv?': teilweise':''}"></button>`;
+      const cov=lv<3&&coveredDay(h,d);
+      html+=`<button class="mc ${lv?'l'+lv:''} ${cov?'cov':''} ${d===t?'today':''}" style="${c}" data-act="mcell" data-id="${esc(h.id)}" data-day="${d}" aria-label="${esc(h.name)}, ${esc(parseKey(d).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))}${lv===3?': erledigt':cov?': mit erledigt':lv?': teilweise':''}"></button>`;
     }
   }
-  html+=`</div><div class="mlegend"><span><i></i>offen</span><span><i style="background:color-mix(in oklab,var(--accent) 45%,var(--surface))"></i>teilweise</span><span><i style="background:var(--accent)"></i>erledigt</span>${hs.some(h=>freqOf(h)!=='tag')?`<span><i class="mc cov" style="--c:var(--accent);height:12px;display:inline-block"></i>nicht fällig</span>`:''}</div></div>`;
+  html+=`</div><div class="mlegend"><span><i></i>offen</span><span><i style="background:color-mix(in oklab,var(--accent) 45%,var(--surface))"></i>teilweise</span><span><i style="background:var(--accent)"></i>erledigt</span>${hs.some(h=>freqOf(h)!=='tag')?`<span><i class="lgcov" style="--c:var(--accent)"></i>mit erledigt</span>`:''}</div></div>`;
   // Zusammenfassung je Gewohnheit
   html+=`<div class="box" style="display:flex;flex-direction:column;gap:8px"><span class="sublabel">${m===monthKey(t)?'Bisher in diesem Monat':'In diesem Monat'}</span><div class="msum">`;
   for(const h of hs){
@@ -618,9 +628,9 @@ function heatHTML(h,withLabels){
   let dots='';
   for(let i=0;i<WEEKS*7;i++){
     const dk=addDays(start,i);
-    if(dk>t){dots+='<span class="dot fut"></span>';continue}
-    const f=Math.min(1,val(dk,h)/g), lv=f>=1?3:f>=.5?2:f>0?1:0;
-    dots+=`<button class="dot ${lv?'l'+lv:''} ${dk===k?'sel':''}" data-act="go" data-day="${dk}" aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))}"></button>`;
+    if(dk>t){dots+=`<span class="dot fut ${coveredDay(h,dk)?'cov':''}"></span>`;continue}
+    const f=Math.min(1,val(dk,h)/g), lv=f>=1?3:f>=.5?2:f>0?1:0, cov=lv<3&&coveredDay(h,dk);
+    dots+=`<button class="dot ${lv?'l'+lv:''} ${cov?'cov':''} ${dk===k?'sel':''}" data-act="go" data-day="${dk}" aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'}))}${cov?': mit erledigt':''}"></button>`;
   }
   if(!withLabels) return `<div class="grid">${dots}</div>`;
   let ml='';
@@ -689,8 +699,8 @@ function viewDetail(){
   const last=new Date(first.getFullYear(),first.getMonth()+1,0), cells=Math.ceil((lead+last.getDate())/7)*7;
   html+=`<div class="box" style="--c:var(--h-${esc(h.color)})"><div class="cal">${WD.map(w=>`<span class="h">${w}</span>`).join('')}`;
   for(let i=0;i<cells;i++){
-    const dk=addDays(gridStart,i), fut=dk>t, f=fut?0:Math.min(1,val(dk,h)/g), lv=f>=1?3:f>=.5?2:f>0?1:0;
-    html+=`<button class="cd ${lv?'l'+lv:''} ${monthKey(dk)!==m?'other':''} ${fut?'fut':''} ${dk===k?'sel':''}" data-act="go" data-day="${dk}" ${fut?'disabled':''} aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{day:'numeric',month:'long'}))}">${parseKey(dk).getDate()}<i></i></button>`;
+    const dk=addDays(gridStart,i), fut=dk>t, f=fut?0:Math.min(1,val(dk,h)/g), lv=f>=1?3:f>=.5?2:f>0?1:0, cov=lv<3&&coveredDay(h,dk);
+    html+=`<button class="cd ${lv?'l'+lv:''} ${cov?'cov':''} ${monthKey(dk)!==m?'other':''} ${fut?'fut':''} ${dk===k?'sel':''}" data-act="go" data-day="${dk}" ${fut?'disabled':''} aria-label="${esc(parseKey(dk).toLocaleDateString('de-DE',{day:'numeric',month:'long'}))}">${parseKey(dk).getDate()}<i></i></button>`;
   }
   const canNext=m<monthKey(t);
   html+=`</div><div class="calnav"><span class="mon">${esc(first.toLocaleDateString('de-DE',{month:'long',year:'numeric'}))}</span>
